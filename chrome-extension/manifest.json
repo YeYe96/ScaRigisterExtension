@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "ScaRigisterExtension",
+  "version": "1.0.0",
+  "description": "给悬镜 SCA 使用的批量注册 Chrome 扩展",
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "ScaRigisterExtension"
+  },
+  "web_accessible_resources": [{
+    "resources": ["lib/auth-utils.js", "page-bridge.js"],
+    "matches": ["<all_urls>"]
+  }],
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["lib/sm2.js", "lib/sm2-utils.js", "lib/rsa.js", "lib/batch-utils.js", "lib/diagnostics-utils.js", "lib/auth-utils.js", "lib/request-utils.js", "lib/password-utils.js", "content.js"],
+    "run_at": "document_start"
+  }]
+}

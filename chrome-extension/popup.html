@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ScaRigisterExtension</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="app">
+    <section class="panel">
+      <div class="panel-header">
+        <h1>ScaRigisterExtension</h1>
+        <button id="refresh-auth" class="ghost-button" type="button">刷新认证</button>
+      </div>
+      <div id="auth-status" class="status-card status-neutral">正在检测当前页面认证信息…</div>
+    </section>
+
+    <section class="panel">
+      <h2>1. 导入账号模板</h2>
+      <label class="file-input">
+        <span>选择 Excel 文件</span>
+        <input id="excel-file" type="file" accept=".xlsx,.xls">
+      </label>
+      <div id="parse-summary" class="status-card status-neutral">请选择 [SCA用户账号模板.xlsx] 对应的填报文件。</div>
+      <div id="skipped-rows" class="list-block hidden"></div>
+      <div id="user-preview" class="table-wrap hidden"></div>
+    </section>
+
+    <section class="panel">
+      <h2>2. 注册参数</h2>
+      <div class="form-grid">
+        <label>
+          <span>默认密码</span>
+          <input id="default-password" type="text" value="" placeholder="请输入统一初始密码（仅保存在本地浏览器）">
+        </label>
+        <label>
+          <span>默认角色 ID</span>
+          <input id="default-role-id" type="number" min="1" step="1" value="1">
+        </label>
+        <label>
+          <span>兜底部门</span>
+          <select id="default-department-id">
+            <option value="2">正在加载部门列表…</option>
+          </select>
+        </label>
+        <label class="wide-field">
+          <span>创建接口路径</span>
+          <input id="create-user-path" type="text" value="/sca/api-v1/user/add">
+        </label>
+        <label class="wide-field">
+          <span>SM2 公钥（本地配置）</span>
+          <textarea
+            id="sm2-public-key"
+            rows="4"
+            placeholder="粘贴环境对应的 SM2 公钥；仅保存在本地浏览器，不写入仓库"></textarea>
+        </label>
+        <label class="wide-field">
+          <span>固定加密密码（可选）</span>
+          <textarea
+            id="encrypted-password-override"
+            rows="4"
+            placeholder="可直接粘贴页面成功请求里的 password 密文；填了就直接复用，不再现场加密"></textarea>
+        </label>
+      </div>
+      <div id="department-mapping" class="mapping-block hidden"></div>
+      <div id="project-mapping" class="mapping-block hidden"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>3. 执行批量注册</h2>
+        <div class="inline-actions">
+          <button id="copy-debug" class="ghost-button" type="button">复制调试信息</button>
+          <button id="reset-state" class="ghost-button" type="button">清空结果</button>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="start-create" class="primary-button" type="button" disabled>开始批量创建</button>
+      </div>
+      <div id="batch-status" class="status-card status-neutral">尚未开始。</div>
+      <div id="debug-status" class="status-card status-neutral">调试信息会跟着运行状态一起更新，失败时这里会给出更具体的排查提示。</div>
+      <div id="batch-results" class="table-wrap hidden"></div>
+    </section>
+  </main>
+
+  <script src="lib/xlsx.full.min.js"></script>
+  <script src="lib/sm2.js"></script>
+  <script src="lib/sm2-utils.js"></script>
+  <script src="lib/batch-utils.js"></script>
+  <script src="lib/diagnostics-utils.js"></script>
+  <script src="lib/request-utils.js"></script>
+  <script src="lib/password-utils.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
