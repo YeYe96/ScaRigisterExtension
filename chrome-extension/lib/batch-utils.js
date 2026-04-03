@@ -245,13 +245,29 @@
 
     return names.map(function (departmentName) {
       const name = normalizeCell(departmentName);
-      const storedId = Number(stored[name]);
-      if (Number.isFinite(storedId) && optionById.has(storedId)) {
-        return {
-          name: name,
-          selectedId: storedId,
-          matchStatus: 'stored',
-        };
+      const storedEntry = stored[name];
+      const storedRecord = storedEntry && typeof storedEntry === 'object' && !Array.isArray(storedEntry)
+        ? storedEntry
+        : null;
+      const storedId = Number(storedRecord ? storedRecord.id : storedEntry);
+      const storedOption = optionById.get(storedId);
+      const storedOptionName = normalizeCell(storedRecord ? (storedRecord.optionName || storedRecord.name) : '');
+      const storedOptionPath = normalizeCell(storedRecord ? (storedRecord.optionPath || storedRecord.path) : '');
+      if (Number.isFinite(storedId) && storedOption) {
+        const currentOptionName = normalizeCell(storedOption.name);
+        const currentOptionPath = normalizeCell(storedOption.path || storedOption.label);
+        const shouldReuseStoredSelection = storedRecord
+          ? ((storedOptionPath && currentOptionPath === storedOptionPath)
+            || (storedOptionName && currentOptionName === storedOptionName))
+          : currentOptionName === name;
+
+        if (shouldReuseStoredSelection) {
+          return {
+            name: name,
+            selectedId: storedId,
+            matchStatus: 'stored',
+          };
+        }
       }
 
       const candidates = optionBuckets.get(name) || [];
@@ -294,14 +310,31 @@
       }).filter(function (id) {
         return Number.isFinite(id);
       }));
-      const storedId = Number(stored[name]);
+      const storedEntry = stored[name];
+      const storedRecord = storedEntry && typeof storedEntry === 'object' && !Array.isArray(storedEntry)
+        ? storedEntry
+        : null;
+      const storedId = Number(storedRecord ? storedRecord.id : storedEntry);
       if (Number.isFinite(storedId) && candidateIds.has(storedId)) {
-        return {
-          name: name,
-          selectedId: storedId,
-          matchStatus: 'stored',
-          candidateCount: candidates.length,
-        };
+        const storedOption = candidates.find(function (option) {
+          return Number(option && option.id) === storedId;
+        });
+        const storedOptionLabel = normalizeCell(storedRecord ? (storedRecord.optionLabel || storedRecord.label || storedRecord.optionPath || storedRecord.path) : '');
+        const storedOptionName = normalizeCell(storedRecord ? (storedRecord.optionName || storedRecord.name) : '');
+        const currentOptionLabel = normalizeCell(storedOption ? storedOption.label : '');
+        const currentOptionName = normalizeCell(storedOption ? storedOption.name : '');
+        const shouldReuseStoredSelection = storedRecord
+          ? ((storedOptionLabel && currentOptionLabel === storedOptionLabel)
+            || (storedOptionName && currentOptionName === storedOptionName))
+          : true;
+        if (shouldReuseStoredSelection) {
+          return {
+            name: name,
+            selectedId: storedId,
+            matchStatus: 'stored',
+            candidateCount: candidates.length,
+          };
+        }
       }
 
       const exactMatches = candidates.filter(function (option) {

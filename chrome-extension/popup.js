@@ -19,6 +19,8 @@
     departmentOptionsError: '',
     projectOptionsByName: {},
     projectOptionsError: '',
+    storedDepartmentMapStore: {},
+    storedProjectMapStore: {},
     storedDepartmentMap: {},
     storedProjectMap: {},
     storedCreateUserPath: '',
@@ -98,6 +100,32 @@
 
   function getBatchUtils() {
     return typeof SCABatchUtils === 'object' ? SCABatchUtils : null;
+  }
+
+  function getScopedMapUtils() {
+    return typeof SCAScopedMapUtils === 'object' ? SCAScopedMapUtils : null;
+  }
+
+  function getCurrentMappingScope() {
+    const scopedMapUtils = getScopedMapUtils();
+    const scopeSource = String(appState.authInfo?.baseUrl || appState.activeTabUrl || '').trim();
+    if (scopedMapUtils && typeof scopedMapUtils.normalizeScope === 'function') {
+      return scopedMapUtils.normalizeScope(scopeSource);
+    }
+    return scopeSource;
+  }
+
+  function readScopedStoredMap(rawStore) {
+    const scopedMapUtils = getScopedMapUtils();
+    if (scopedMapUtils && typeof scopedMapUtils.readScopedMap === 'function') {
+      return scopedMapUtils.readScopedMap(rawStore, getCurrentMappingScope());
+    }
+    return rawStore && typeof rawStore === 'object' ? rawStore : {};
+  }
+
+  function refreshScopedMappingState() {
+    appState.storedDepartmentMap = readScopedStoredMap(appState.storedDepartmentMapStore);
+    appState.storedProjectMap = readScopedStoredMap(appState.storedProjectMapStore);
   }
 
   function getConfiguredSm2PublicKey() {
@@ -704,6 +732,31 @@
     return mapping;
   }
 
+  function collectDepartmentStoredMap() {
+    const mapping = {};
+    const optionById = new Map(getDepartmentOptions().map(function (option) {
+      return [String(option.id), option];
+    }));
+    Array.from(document.querySelectorAll('.department-id-input')).forEach(function (select) {
+      const value = select.value.trim();
+      const departmentName = select.dataset.departmentName;
+      if (!value) {
+        return;
+      }
+      const selectedOption = optionById.get(value);
+      mapping[departmentName] = selectedOption
+        ? {
+          id: Number(value),
+          optionName: selectedOption.name || '',
+          optionPath: selectedOption.path || selectedOption.label || '',
+        }
+        : {
+          id: Number(value),
+        };
+    });
+    return mapping;
+  }
+
   function collectProjectMap() {
     const mapping = {};
     Array.from(document.querySelectorAll('.project-id-input')).forEach(function (select) {
@@ -716,16 +769,49 @@
     return mapping;
   }
 
+  function collectProjectStoredMap() {
+    const mapping = {};
+    Array.from(document.querySelectorAll('.project-id-input')).forEach(function (select) {
+      const value = select.value.trim();
+      const projectName = select.dataset.projectName;
+      if (!value) {
+        return;
+      }
+      const options = Array.isArray(appState.projectOptionsByName[projectName]) ? appState.projectOptionsByName[projectName] : [];
+      const selectedOption = options.find(function (option) {
+        return String(option.id) === value;
+      });
+      mapping[projectName] = selectedOption
+        ? {
+          id: Number(value),
+          optionName: selectedOption.name || '',
+          optionLabel: selectedOption.label || '',
+        }
+        : {
+          id: Number(value),
+        };
+    });
+    return mapping;
+  }
+
   async function persistDepartmentMappings() {
-    const mapping = collectDepartmentMap();
-    appState.storedDepartmentMap = mapping;
-    await storageSet({ [DEPARTMENT_MAP_KEY]: mapping });
+    const scopedMapUtils = getScopedMapUtils();
+    const mapping = collectDepartmentStoredMap();
+    appState.storedDepartmentMapStore = scopedMapUtils && typeof scopedMapUtils.writeScopedMap === 'function'
+      ? scopedMapUtils.writeScopedMap(appState.storedDepartmentMapStore, getCurrentMappingScope(), mapping)
+      : mapping;
+    refreshScopedMappingState();
+    await storageSet({ [DEPARTMENT_MAP_KEY]: appState.storedDepartmentMapStore });
   }
 
   async function persistProjectMappings() {
-    const mapping = collectProjectMap();
-    appState.storedProjectMap = mapping;
-    await storageSet({ [PROJECT_MAP_KEY]: mapping });
+    const scopedMapUtils = getScopedMapUtils();
+    const mapping = collectProjectStoredMap();
+    appState.storedProjectMapStore = scopedMapUtils && typeof scopedMapUtils.writeScopedMap === 'function'
+      ? scopedMapUtils.writeScopedMap(appState.storedProjectMapStore, getCurrentMappingScope(), mapping)
+      : mapping;
+    refreshScopedMappingState();
+    await storageSet({ [PROJECT_MAP_KEY]: appState.storedProjectMapStore });
   }
 
   function setBatchFailureState(message, details) {
@@ -900,6 +986,7 @@
     } catch (_error) {
       appState.authInfo = null;
     }
+    refreshScopedMappingState();
     await refreshDepartmentOptions();
     await refreshProjectOptions();
     renderAuthInfo();
@@ -916,8 +1003,9 @@
       DEFAULT_PASSWORD_KEY,
       SM2_PUBLIC_KEY_KEY,
     ]);
-    appState.storedDepartmentMap = items[DEPARTMENT_MAP_KEY] || {};
-    appState.storedProjectMap = items[PROJECT_MAP_KEY] || {};
+    appState.storedDepartmentMapStore = items[DEPARTMENT_MAP_KEY] || {};
+    appState.storedProjectMapStore = items[PROJECT_MAP_KEY] || {};
+    refreshScopedMappingState();
     appState.batchState = items[BATCH_STATE_KEY] || null;
     appState.storedCreateUserPath = normalizeCreateUserPath(items[CREATE_USER_PATH_KEY] || getDefaultCreateUserPath());
     appState.storedEncryptedPasswordOverride = String(items[ENCRYPTED_PASSWORD_OVERRIDE_KEY] || '').trim();
@@ -1087,9 +1175,8 @@
 
   async function init() {
     bindEvents();
-    await restoreLocalState();
-
     await refreshActiveTabContext();
+    await restoreLocalState();
 
     await refreshAuthInfo();
     renderParseSummary();
