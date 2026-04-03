@@ -533,7 +533,7 @@
       return '检查模板里的邮箱是否重复，或是否已被系统占用。';
     }
     if (/用户名/.test(apiMessage) || /账号/.test(apiMessage)) {
-      return '检查用户名是否重复，或是否和已有 ITM 身份冲突。';
+      return '检查用户名是否重复，或是否和已有系统账号身份冲突。';
     }
     if (/部门/.test(apiMessage)) {
       return '优先核对 departmentId 映射是否填对。';
